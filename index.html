@@ -7,31 +7,187 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+
   <!-- Header -->
   <header class="header">
-    <div class="header-left">
-      <h1 class="logo">Brad's Handy Dandy Fitting Tool</h1>
-    </div>
-    <div class="header-right">
-      <div class="dev-mode-wrapper">
+    <div class="header-inner">
+      <div class="logo-group">
+        <!-- Wrench + Ruler Icon -->
+        <svg class="logo-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="20" width="40" height="8" rx="3" fill="currentColor" opacity="0.15"/>
+          <rect x="4" y="22" width="40" height="4" rx="2" fill="currentColor" opacity="0.5"/>
+          <!-- tick marks -->
+          <line x1="12" y1="20" x2="12" y2="26" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="20" y1="20" x2="20" y2="28" stroke="currentColor" stroke-width="2"/>
+          <line x1="28" y1="20" x2="28" y2="26" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="36" y1="20" x2="36" y2="28" stroke="currentColor" stroke-width="2"/>
+          <!-- Wrench -->
+          <path d="M30 8 C35 8 39 12 39 17 C39 19 38 21 36.5 22.5 L26 33 C25 34 23.5 34 22.5 33 L21 31.5 C20 30.5 20 29 21 28 L31.5 17.5 C33 16 33 14 31.5 12.5 C30 11 28 11 26.5 12.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <circle cx="23" cy="32" r="1.5" fill="currentColor"/>
+        </svg>
+        <h1 class="logo-text">Brad's Handy Dandy Fitting Tool</h1>
+      </div>
+      <div class="header-actions">
         <button id="devModeBtn" class="btn btn-dev" title="Developer Mode">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-          <span>Dev Mode</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          <span>Dev</span>
+        </button>
+        <button id="themeToggle" class="btn btn-theme" title="Toggle theme">
+          <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
         </button>
       </div>
-      <button id="themeToggle" class="btn btn-theme" title="Toggle Day/Night Mode">
-        <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-        <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-      </button>
     </div>
   </header>
 
-  <!-- Dev Mode Password Modal -->
+  <!-- Hero / Search Panel -->
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="hero-subtitle">Enter your cutout dimensions to find matching models</p>
+
+      <div class="dimension-inputs">
+        <div class="dim-field">
+          <label for="filterWidth">Cutout Width</label>
+          <div class="dim-input-wrap">
+            <input type="number" id="filterWidth" class="dim-input" placeholder="e.g. 34.75" step="0.125">
+            <span class="dim-unit">in</span>
+          </div>
+        </div>
+        <div class="dim-sep">×</div>
+        <div class="dim-field">
+          <label for="filterHeight">Cutout Height</label>
+          <div class="dim-input-wrap">
+            <input type="number" id="filterHeight" class="dim-input" placeholder="optional" step="0.125">
+            <span class="dim-unit">in</span>
+          </div>
+        </div>
+        <div class="dim-sep">×</div>
+        <div class="dim-field">
+          <label for="filterDepth">Cutout Depth</label>
+          <div class="dim-input-wrap">
+            <input type="number" id="filterDepth" class="dim-input" placeholder="optional" step="0.125">
+            <span class="dim-unit">in</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tolerance-row">
+        <label for="fitTolerance" class="tol-label">Fit tolerance</label>
+        <input type="range" id="fitTolerance" min="0.25" max="4" step="0.25" value="1">
+        <span id="fitToleranceVal" class="tol-val">± 1"</span>
+      </div>
+
+      <!-- Search + filters toggle -->
+      <div class="search-row">
+        <div class="search-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="searchInput" class="search-input" placeholder="Search model number, brand…">
+        </div>
+        <button id="filtersToggleBtn" class="btn btn-secondary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Filters
+        </button>
+      </div>
+
+      <!-- Collapsible filters -->
+      <div id="filtersPanel" class="filters-panel" style="display:none;">
+        <div class="filters-grid">
+          <div class="filter-group">
+            <div class="filter-group-label">Brand</div>
+            <div class="filter-list" id="brandFilters"></div>
+          </div>
+          <div class="filter-group">
+            <div class="filter-group-label">Category</div>
+            <div class="filter-list" id="categoryFilters"></div>
+          </div>
+          <div class="filter-group">
+            <div class="filter-group-label">Nominal Size</div>
+            <div class="filter-list" id="nominalSizeFilters"></div>
+          </div>
+          <div class="filter-group">
+            <div class="filter-group-label">Install Type</div>
+            <div class="filter-list" id="installFilters"></div>
+          </div>
+          <div class="filter-group">
+            <div class="filter-group-label">Status</div>
+            <label class="toggle-label">
+              <input type="checkbox" id="filterActive" checked>
+              <span class="toggle-switch"></span>
+              Active only
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="filterConfirmed">
+              <span class="toggle-switch"></span>
+              Confirmed only
+            </label>
+          </div>
+          <div class="filter-group">
+            <div class="filter-group-label">Sort by</div>
+            <select id="sortBy" class="input input-sm">
+              <option value="fit">Best Fit</option>
+              <option value="brand">Brand</option>
+              <option value="model">Model Number</option>
+              <option value="nominalSize">Nominal Size</option>
+              <option value="width">Width</option>
+            </select>
+          </div>
+        </div>
+        <!-- Dev only: add model button -->
+        <div class="dev-only" style="display:none; margin-top:12px; text-align:center;">
+          <button id="addModelBtn" class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add New Model
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Results -->
+  <main class="results-section" id="mainContent">
+    <div class="results-inner">
+
+      <!-- Legend + stats bar -->
+      <div class="results-meta" id="resultsMeta" style="display:none;">
+        <div class="results-count">Showing <strong id="showingModels">0</strong> of <strong id="totalModels">0</strong> models</div>
+        <div class="fit-legend">
+          <span class="legend-dot green"></span> Fits
+          <span class="legend-dot orange"></span> Very close
+          <span class="legend-dot none"></span> Other matches
+        </div>
+      </div>
+
+      <div class="model-grid" id="modelGrid"></div>
+
+      <div class="no-results" id="noResults" style="display:none;">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <p>No models match your filters.</p>
+        <p class="no-results-sub">Try adjusting the dimensions or increasing the tolerance.</p>
+      </div>
+
+      <div class="empty-state" id="emptyState">
+        <svg width="56" height="56" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="6" y="20" width="36" height="8" rx="3" stroke="currentColor" stroke-width="2" opacity="0.4"/>
+          <line x1="14" y1="20" x2="14" y2="26" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+          <line x1="22" y1="20" x2="22" y2="28" stroke="currentColor" stroke-width="2" opacity="0.6"/>
+          <line x1="30" y1="20" x2="30" y2="26" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+          <line x1="38" y1="20" x2="38" y2="28" stroke="currentColor" stroke-width="2" opacity="0.6"/>
+        </svg>
+        <p>Enter dimensions above to find matching models</p>
+        <p class="no-results-sub">Or search by model number to browse all</p>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ======= MODALS ======= -->
+
+  <!-- Dev Password Modal -->
   <div id="devModal" class="modal-overlay" style="display:none;">
     <div class="modal">
       <h3>Developer Mode</h3>
-      <p>Enter the admin password to unlock Developer Mode.</p>
-      <input type="password" id="devPassword" class="input" placeholder="Password..." autocomplete="off">
+      <p>Enter the admin password to unlock editing and model management.</p>
+      <input type="password" id="devPassword" class="input" placeholder="Password…" autocomplete="off">
       <p id="devError" class="error-text" style="display:none;">Incorrect password.</p>
       <div class="modal-actions">
         <button id="devCancel" class="btn btn-secondary">Cancel</button>
@@ -43,7 +199,7 @@
   <!-- Edit Model Modal -->
   <div id="editModal" class="modal-overlay" style="display:none;">
     <div class="modal modal-wide">
-      <h3>Edit Model: <span id="editModelId"></span></h3>
+      <h3>Edit Model: <span id="editModelId" class="mono"></span></h3>
       <div class="edit-grid">
         <label>Brand<input type="text" id="editBrand" class="input"></label>
         <label>Category<input type="text" id="editCategory" class="input"></label>
@@ -60,8 +216,8 @@
           </select>
         </label>
         <label>Nominal Size<input type="text" id="editNominalSize" class="input" placeholder='e.g. 36'></label>
-        <label>Trim<input type="text" id="editTrim" class="input" placeholder="e.g. Stainless"></label>
-        <label>Color<input type="text" id="editColor" class="input" placeholder="e.g. Black"></label>
+        <label>Trim<input type="text" id="editTrim" class="input"></label>
+        <label>Color<input type="text" id="editColor" class="input"></label>
       </div>
       <h4>Appliance Dimensions</h4>
       <div class="edit-grid">
@@ -86,9 +242,9 @@
   <!-- Related Models Modal -->
   <div id="relateModal" class="modal-overlay" style="display:none;">
     <div class="modal modal-wide">
-      <h3>Manage Related Models for: <span id="relateModelId"></span></h3>
+      <h3>Related Models for: <span id="relateModelId" class="mono"></span></h3>
       <p>Select models that are variants of the same appliance (different color/trim).</p>
-      <input type="text" id="relateSearch" class="input" placeholder="Search models...">
+      <input type="text" id="relateSearch" class="input" placeholder="Search models…">
       <div id="relateList" class="relate-list"></div>
       <div class="modal-actions">
         <button id="relateCancel" class="btn btn-secondary">Cancel</button>
@@ -97,17 +253,22 @@
     </div>
   </div>
 
-  <!-- Add Model Modal (Dev Mode) -->
+  <!-- Add Model Modal -->
   <div id="addModal" class="modal-overlay" style="display:none;">
     <div class="modal modal-wide">
       <h3>Add New Model</h3>
       <div class="edit-grid">
-        <label>Model Number<input type="text" id="addModelId" class="input" placeholder="e.g. CIT36YWBB"></label>
-        <label>Brand<input type="text" id="addBrand" class="input"></label>
+        <label>Model Number *<input type="text" id="addModelId" class="input" placeholder="e.g. CIT36YWBB"></label>
+        <label>Brand<input type="text" id="addBrand" class="input" placeholder="e.g. Thermador"></label>
         <label>Category
           <select id="addCategory" class="input">
             <option value="Cooktop - Induction">Cooktop - Induction</option>
+            <option value="Cooktop - Gas">Cooktop - Gas</option>
+            <option value="Cooktop - Electric">Cooktop - Electric</option>
+            <option value="Rangetop - Gas">Rangetop - Gas</option>
             <option value="Rangetop - Induction">Rangetop - Induction</option>
+            <option value="Rangetop - Electric">Rangetop - Electric</option>
+            <option value="Other">Other</option>
           </select>
         </label>
         <label>Nominal Size<input type="text" id="addNominalSize" class="input" placeholder="e.g. 36"></label>
@@ -133,137 +294,14 @@
         <label>Cutout Depth<input type="text" id="addCutoutDepth" class="input"></label>
       </div>
       <label class="full-width">Install Note<textarea id="addInstallNote" class="input textarea" rows="2"></textarea></label>
+      <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
+        Tip: To bulk-import many models, add them directly to <code>data/appliances.json</code> following the same object structure.
+      </p>
       <div class="modal-actions">
         <button id="addCancel" class="btn btn-secondary">Cancel</button>
         <button id="addSave" class="btn btn-primary">Add Model</button>
       </div>
     </div>
-  </div>
-
-  <div class="layout">
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-      <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-      </button>
-
-      <!-- Stats Section -->
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">Overview</h3>
-        <div class="stat-row">
-          <span class="stat-label">Total Models</span>
-          <span class="stat-value" id="totalModels">0</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Showing</span>
-          <span class="stat-value" id="showingModels">0</span>
-        </div>
-        <div class="progress-section">
-          <div class="stat-row">
-            <span class="stat-label">Confirmed</span>
-            <span class="stat-value" id="confirmedCount">0 / 0</span>
-          </div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="progressFill"></div>
-          </div>
-          <span class="progress-percent" id="progressPercent">0%</span>
-        </div>
-      </div>
-
-      <!-- Search -->
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">Search</h3>
-        <input type="text" id="searchInput" class="input" placeholder="Search model number...">
-      </div>
-
-      <!-- Size Filter -->
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">Size Filter (inches)</h3>
-        <div class="size-inputs">
-          <label>W<input type="number" id="filterWidth" class="input input-sm" placeholder="Width" step="0.125"></label>
-          <label>H<input type="number" id="filterHeight" class="input input-sm" placeholder="Height" step="0.125"></label>
-          <label>D<input type="number" id="filterDepth" class="input input-sm" placeholder="Depth" step="0.125"></label>
-        </div>
-        <div class="closest-fit-section">
-          <label class="toggle-label">
-            <input type="checkbox" id="closestFit">
-            <span class="toggle-switch"></span>
-            Next Closest Fit
-          </label>
-          <div class="closest-fit-options" id="closestFitOptions" style="display:none;">
-            <label class="radio-label"><input type="radio" name="closestPriority" value="width" checked> Match Width</label>
-            <label class="radio-label"><input type="radio" name="closestPriority" value="height"> Match Height</label>
-            <label>Tolerance (in)<input type="number" id="closestTolerance" class="input input-sm" value="2" min="0.5" max="12" step="0.5"></label>
-          </div>
-        </div>
-      </div>
-
-      <!-- Filters -->
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">Brand</h3>
-        <div class="filter-list" id="brandFilters"></div>
-      </div>
-
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">Category</h3>
-        <div class="filter-list" id="categoryFilters"></div>
-      </div>
-
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">Nominal Size</h3>
-        <div class="filter-list" id="nominalSizeFilters"></div>
-      </div>
-
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">Install Type</h3>
-        <div class="filter-list" id="installFilters"></div>
-      </div>
-
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">Status</h3>
-        <label class="toggle-label">
-          <input type="checkbox" id="filterActive" checked>
-          <span class="toggle-switch"></span>
-          Active Only
-        </label>
-        <label class="toggle-label">
-          <input type="checkbox" id="filterConfirmed">
-          <span class="toggle-switch"></span>
-          Confirmed Only
-        </label>
-      </div>
-
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">Sort</h3>
-        <select id="sortBy" class="input">
-          <option value="brand">Brand</option>
-          <option value="model">Model Number</option>
-          <option value="nominalSize">Nominal Size</option>
-          <option value="category">Category</option>
-          <option value="width">Width</option>
-        </select>
-        <div class="sort-direction">
-          <label class="radio-label"><input type="radio" name="sortDir" value="asc" checked> Ascending</label>
-          <label class="radio-label"><input type="radio" name="sortDir" value="desc"> Descending</label>
-        </div>
-      </div>
-
-      <!-- Dev Mode: Add Model Button -->
-      <div class="sidebar-section dev-only" style="display:none;">
-        <button id="addModelBtn" class="btn btn-primary btn-full">+ Add New Model</button>
-      </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="main-content" id="mainContent">
-      <div class="model-grid" id="modelGrid">
-        <!-- Cards rendered by JS -->
-      </div>
-      <div class="no-results" id="noResults" style="display:none;">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <p>No models match your filters.</p>
-      </div>
-    </main>
   </div>
 
   <script src="js/app.js"></script>
