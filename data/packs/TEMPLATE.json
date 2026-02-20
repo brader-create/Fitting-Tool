@@ -1,0 +1,21 @@
+[
+  {
+    "id": "EXAMPLE-MODEL-123",
+    "brand": "Brand Name",
+    "category": "Cooktop - Induction",
+    "active": true,
+    "confirmed": false,
+    "nominalSize": "36",
+    "width": "36 15/16\"",
+    "height": "4 1/4\"",
+    "depth": "21 1/4\"",
+    "builtIn": true,
+    "install": "Proud",
+    "cutoutWidth": "34 3/4\"",
+    "cutoutHeight": "3 7/8\"",
+    "cutoutDepth": "19 7/8\"",
+    "installNote": "Example install note.",
+    "trim": "",
+    "color": ""
+  }
+]
