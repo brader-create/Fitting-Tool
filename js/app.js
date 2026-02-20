@@ -1,4 +1,4 @@
-/* ===== Brad's Handy Dandy Fitting Tool - Main App ===== */
+/* ===== Brad's Handy Dandy Fitting Tool ===== */
 
 (function () {
   'use strict';
@@ -8,7 +8,6 @@
   let filteredModels = [];
   let devMode = false;
 
-  // localStorage keys
   const STORAGE_KEYS = {
     confirmed: 'fittingTool_confirmed',
     overrides: 'fittingTool_overrides',
@@ -17,90 +16,72 @@
     theme: 'fittingTool_theme',
   };
 
+  // Fit thresholds (inches)
+  const FIT_EXACT_THRESHOLD = 0.5;   // green — fits
+  const FIT_CLOSE_THRESHOLD = 1.5;   // orange — very close
+
   // ===== Helpers =====
 
-  /** Parse fractional inch strings like '36 15/16"' to a decimal number. */
   function parseInches(str) {
     if (!str || typeof str !== 'string') return null;
-    // Remove quotes, trim, remove parenthetical notes
     let s = str.replace(/"/g, '').replace(/\(.*?\)/g, '').trim();
-    // Handle range: take first value (e.g. "34 3/4 - 34 7/8" -> 34.75)
-    if (s.includes('-')) {
-      s = s.split('-')[0].trim();
-    }
-    // Handle ± notation
+    if (s.includes('-')) s = s.split('-')[0].trim();
     s = s.replace(/[±\u00b1].*/, '').trim();
-    // Match patterns: "36", "36 15/16", "15/16", "36.5"
     const mixedMatch = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
-    if (mixedMatch) {
-      return parseInt(mixedMatch[1]) + parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]);
-    }
+    if (mixedMatch) return parseInt(mixedMatch[1]) + parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]);
     const fracMatch = s.match(/^(\d+)\/(\d+)$/);
-    if (fracMatch) {
-      return parseInt(fracMatch[1]) / parseInt(fracMatch[2]);
-    }
+    if (fracMatch) return parseInt(fracMatch[1]) / parseInt(fracMatch[2]);
     const numMatch = s.match(/^[\d.]+$/);
-    if (numMatch) {
-      return parseFloat(s);
-    }
+    if (numMatch) return parseFloat(s);
     return null;
   }
 
-  /** Get a stored JSON object or default. */
   function getStorage(key, fallback) {
     try {
       const v = localStorage.getItem(key);
       return v ? JSON.parse(v) : fallback;
-    } catch {
-      return fallback;
-    }
+    } catch { return fallback; }
   }
 
-  /** Set a stored JSON object. */
   function setStorage(key, value) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch { /* quota exceeded - silently fail */ }
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch { }
   }
 
-  /** Merge base model data with any localStorage overrides. */
   function getModelData(model) {
     const overrides = getStorage(STORAGE_KEYS.overrides, {});
     const confirmed = getStorage(STORAGE_KEYS.confirmed, {});
     const merged = { ...model };
-    if (overrides[model.id]) {
-      Object.assign(merged, overrides[model.id]);
-    }
+    if (overrides[model.id]) Object.assign(merged, overrides[model.id]);
     merged.confirmed = !!confirmed[model.id];
     return merged;
   }
 
-  /** Get all related models for a given model ID. */
   function getRelatedModels(modelId) {
     const groups = getStorage(STORAGE_KEYS.related, {});
-    // Find the group this model belongs to
     for (const groupId of Object.keys(groups)) {
       const members = groups[groupId];
-      if (members.includes(modelId)) {
-        return members.filter(id => id !== modelId);
-      }
+      if (members.includes(modelId)) return members.filter(id => id !== modelId);
     }
     return [];
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
   }
 
   // ===== Data Loading =====
 
   async function loadData() {
     try {
-      // Load manifest
       const manifestRes = await fetch('data/manifest.json');
       const manifest = await manifestRes.json();
 
-      // Load base pack
       const baseRes = await fetch('data/' + manifest.basePack);
       let models = await baseRes.json();
 
-      // Load expansion packs
       for (const pack of (manifest.expansionPacks || [])) {
         try {
           const packRes = await fetch('data/packs/' + pack);
@@ -111,14 +92,12 @@
         }
       }
 
-      // Load user-added models from localStorage
       const addedModels = getStorage(STORAGE_KEYS.addedModels, []);
       models = models.concat(addedModels);
 
-      // Merge overrides
       allModels = models.map(m => getModelData(m));
 
-      // Deduplicate by id
+      // Deduplicate
       const seen = new Set();
       allModels = allModels.filter(m => {
         if (seen.has(m.id)) return false;
@@ -130,7 +109,7 @@
     } catch (e) {
       console.error('Failed to load appliance data:', e);
       document.getElementById('modelGrid').innerHTML =
-        '<p style="padding:40px;text-align:center;color:var(--text-muted);">Failed to load data. Make sure you are serving this from a web server (not file://).</p>';
+        '<p style="padding:40px;text-align:center;color:var(--text-muted)">Failed to load data. Serve from a web server (not file://).</p>';
     }
   }
 
@@ -139,76 +118,75 @@
   function initUI() {
     buildFilterChips();
     attachEventListeners();
-    applyFilters();
-    updateStats();
     loadTheme();
+    // Show empty state on load - no results until user types
+    showEmptyState();
+  }
+
+  function showEmptyState() {
+    document.getElementById('emptyState').style.display = 'flex';
+    document.getElementById('noResults').style.display = 'none';
+    document.getElementById('modelGrid').innerHTML = '';
+    document.getElementById('resultsMeta').style.display = 'none';
+    document.getElementById('showingModels').textContent = '0';
+    document.getElementById('totalModels').textContent = allModels.length;
   }
 
   function buildFilterChips() {
-    // Brands
     const brands = [...new Set(allModels.map(m => m.brand))].sort();
-    const brandContainer = document.getElementById('brandFilters');
-    brandContainer.innerHTML = brands.map(b => {
+    document.getElementById('brandFilters').innerHTML = brands.map(b => {
       const count = allModels.filter(m => m.brand === b).length;
-      return `<button class="filter-chip active" data-filter="brand" data-value="${b}">${b} <span class="count">(${count})</span></button>`;
+      return `<button class="filter-chip active" data-filter="brand" data-value="${escHtml(b)}">${escHtml(b)} <span class="count">(${count})</span></button>`;
     }).join('');
 
-    // Categories
     const categories = [...new Set(allModels.map(m => m.category))].sort();
-    const catContainer = document.getElementById('categoryFilters');
-    catContainer.innerHTML = categories.map(c => {
+    document.getElementById('categoryFilters').innerHTML = categories.map(c => {
       const count = allModels.filter(m => m.category === c).length;
-      return `<button class="filter-chip active" data-filter="category" data-value="${c}">${c} <span class="count">(${count})</span></button>`;
+      return `<button class="filter-chip active" data-filter="category" data-value="${escHtml(c)}">${escHtml(c)} <span class="count">(${count})</span></button>`;
     }).join('');
 
-    // Nominal sizes
     const sizes = [...new Set(allModels.map(m => m.nominalSize).filter(Boolean))].sort((a, b) => parseInt(a) - parseInt(b));
-    const sizeContainer = document.getElementById('nominalSizeFilters');
-    sizeContainer.innerHTML = sizes.map(s => {
+    document.getElementById('nominalSizeFilters').innerHTML = sizes.map(s => {
       const count = allModels.filter(m => m.nominalSize === s).length;
-      return `<button class="filter-chip active" data-filter="nominalSize" data-value="${s}">${s}" <span class="count">(${count})</span></button>`;
+      return `<button class="filter-chip active" data-filter="nominalSize" data-value="${escHtml(s)}">${escHtml(s)}" <span class="count">(${count})</span></button>`;
     }).join('');
 
-    // Install types
     const installs = [...new Set(allModels.map(m => m.install))].sort();
-    const installContainer = document.getElementById('installFilters');
-    installContainer.innerHTML = installs.map(i => {
+    document.getElementById('installFilters').innerHTML = installs.map(i => {
       const count = allModels.filter(m => m.install === i).length;
-      return `<button class="filter-chip active" data-filter="install" data-value="${i}">${i} <span class="count">(${count})</span></button>`;
+      return `<button class="filter-chip active" data-filter="install" data-value="${escHtml(i)}">${escHtml(i)} <span class="count">(${count})</span></button>`;
     }).join('');
   }
 
   // ===== Event Listeners =====
 
   function attachEventListeners() {
-    // Theme toggle
+    // Theme
     document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
-    // Filter chips
-    document.querySelectorAll('.filter-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        chip.classList.toggle('active');
-        applyFilters();
+    // Filter chips (delegated)
+    ['brandFilters', 'categoryFilters', 'nominalSizeFilters', 'installFilters'].forEach(id => {
+      document.getElementById(id).addEventListener('click', e => {
+        const chip = e.target.closest('.filter-chip');
+        if (chip) { chip.classList.toggle('active'); applyFilters(); }
       });
     });
 
     // Search
     document.getElementById('searchInput').addEventListener('input', applyFilters);
 
-    // Size filters
+    // Dimension inputs
     ['filterWidth', 'filterHeight', 'filterDepth'].forEach(id => {
       document.getElementById(id).addEventListener('input', applyFilters);
     });
 
-    // Closest fit toggle
-    document.getElementById('closestFit').addEventListener('change', function () {
-      document.getElementById('closestFitOptions').style.display = this.checked ? 'block' : 'none';
+    // Tolerance slider
+    const tolSlider = document.getElementById('fitTolerance');
+    const tolVal = document.getElementById('fitToleranceVal');
+    tolSlider.addEventListener('input', () => {
+      tolVal.textContent = '± ' + tolSlider.value + '"';
       applyFilters();
     });
-    document.querySelectorAll('input[name="closestPriority"]').forEach(r => {
-      r.addEventListener('change', applyFilters);
-    });
-    document.getElementById('closestTolerance').addEventListener('input', applyFilters);
 
     // Active / Confirmed toggles
     document.getElementById('filterActive').addEventListener('change', applyFilters);
@@ -216,13 +194,15 @@
 
     // Sort
     document.getElementById('sortBy').addEventListener('change', applyFilters);
-    document.querySelectorAll('input[name="sortDir"]').forEach(r => {
-      r.addEventListener('change', applyFilters);
-    });
 
-    // Sidebar toggle (mobile)
-    document.getElementById('sidebarToggle').addEventListener('click', () => {
-      document.getElementById('sidebar').classList.toggle('open');
+    // Filters toggle
+    document.getElementById('filtersToggleBtn').addEventListener('click', () => {
+      const panel = document.getElementById('filtersPanel');
+      const btn = document.getElementById('filtersToggleBtn');
+      const open = panel.style.display === 'none';
+      panel.style.display = open ? 'block' : 'none';
+      btn.classList.toggle('btn-primary', open);
+      btn.classList.toggle('btn-secondary', !open);
     });
 
     // Dev mode
@@ -231,7 +211,7 @@
       document.getElementById('devModal').style.display = 'none';
     });
     document.getElementById('devSubmit').addEventListener('click', handleDevModeSubmit);
-    document.getElementById('devPassword').addEventListener('keydown', (e) => {
+    document.getElementById('devPassword').addEventListener('keydown', e => {
       if (e.key === 'Enter') handleDevModeSubmit();
     });
 
@@ -261,13 +241,8 @@
   // ===== Theme =====
 
   function loadTheme() {
-    const saved = localStorage.getItem(STORAGE_KEYS.theme);
-    if (saved) {
-      document.documentElement.setAttribute('data-theme', saved);
-    } else {
-      // Default to light
-      document.documentElement.setAttribute('data-theme', 'light');
-    }
+    const saved = localStorage.getItem(STORAGE_KEYS.theme) || 'light';
+    document.documentElement.setAttribute('data-theme', saved);
   }
 
   function toggleTheme() {
@@ -295,8 +270,7 @@
   }
 
   function handleDevModeSubmit() {
-    const pw = document.getElementById('devPassword').value;
-    if (pw === 'TrailerAdmin77') {
+    if (document.getElementById('devPassword').value === 'TrailerAdmin77') {
       devMode = true;
       document.getElementById('devModal').style.display = 'none';
       document.body.classList.add('dev-mode-active');
@@ -308,10 +282,43 @@
     }
   }
 
+  // ===== Fit Classification =====
+
+  /**
+   * Returns 'exact' (green), 'close' (orange), or null (no fit data / beyond tolerance).
+   * Uses cutout width as primary dimension. Falls back to appliance width.
+   */
+  function classifyFit(model, targetW, targetH, targetD, tolerance) {
+    const hasTarget = !isNaN(targetW) || !isNaN(targetH) || !isNaN(targetD);
+    if (!hasTarget) return null;
+
+    let maxDiff = 0;
+    let compared = 0;
+
+    if (!isNaN(targetW)) {
+      const w = parseInches(model.cutoutWidth) || parseInches(model.width);
+      if (w !== null) { maxDiff = Math.max(maxDiff, Math.abs(w - targetW)); compared++; }
+    }
+    if (!isNaN(targetH)) {
+      const h = parseInches(model.cutoutHeight) || parseInches(model.height);
+      if (h !== null) { maxDiff = Math.max(maxDiff, Math.abs(h - targetH)); compared++; }
+    }
+    if (!isNaN(targetD)) {
+      const d = parseInches(model.cutoutDepth) || parseInches(model.depth);
+      if (d !== null) { maxDiff = Math.max(maxDiff, Math.abs(d - targetD)); compared++; }
+    }
+
+    if (compared === 0) return null;
+    if (maxDiff > tolerance) return null;          // outside tolerance — filtered out
+    if (maxDiff <= FIT_EXACT_THRESHOLD) return 'exact';
+    if (maxDiff <= FIT_CLOSE_THRESHOLD) return 'close';
+    return 'near'; // within tolerance but beyond close threshold — shown but no color
+  }
+
   // ===== Filtering & Sorting =====
 
   function applyFilters() {
-    // Refresh confirmed/overrides from storage
+    // Refresh overrides/confirmed from storage
     allModels = allModels.map(m => {
       const confirmed = getStorage(STORAGE_KEYS.confirmed, {});
       const overrides = getStorage(STORAGE_KEYS.overrides, {});
@@ -333,162 +340,127 @@
       );
     }
 
-    // Brand filter
-    const activeBrands = getActiveFilterValues('brand');
-    if (activeBrands.length > 0 && activeBrands.length < allBrandsCount()) {
+    // Brand
+    const activeBrands = getActiveChips('brand');
+    const totalBrands = document.querySelectorAll('.filter-chip[data-filter="brand"]').length;
+    if (activeBrands.length > 0 && activeBrands.length < totalBrands)
       models = models.filter(m => activeBrands.includes(m.brand));
-    }
 
-    // Category filter
-    const activeCats = getActiveFilterValues('category');
-    if (activeCats.length > 0 && activeCats.length < allCatsCount()) {
+    // Category
+    const activeCats = getActiveChips('category');
+    const totalCats = document.querySelectorAll('.filter-chip[data-filter="category"]').length;
+    if (activeCats.length > 0 && activeCats.length < totalCats)
       models = models.filter(m => activeCats.includes(m.category));
-    }
 
-    // Nominal size filter
-    const activeSizes = getActiveFilterValues('nominalSize');
+    // Nominal size
+    const activeSizes = getActiveChips('nominalSize');
     const totalSizes = document.querySelectorAll('.filter-chip[data-filter="nominalSize"]').length;
-    if (activeSizes.length > 0 && activeSizes.length < totalSizes) {
+    if (activeSizes.length > 0 && activeSizes.length < totalSizes)
       models = models.filter(m => activeSizes.includes(m.nominalSize));
-    }
 
-    // Install type filter
-    const activeInstalls = getActiveFilterValues('install');
+    // Install
+    const activeInstalls = getActiveChips('install');
     const totalInstalls = document.querySelectorAll('.filter-chip[data-filter="install"]').length;
-    if (activeInstalls.length > 0 && activeInstalls.length < totalInstalls) {
+    if (activeInstalls.length > 0 && activeInstalls.length < totalInstalls)
       models = models.filter(m => activeInstalls.includes(m.install));
-    }
 
-    // Active only
-    if (document.getElementById('filterActive').checked) {
-      models = models.filter(m => m.active);
-    }
+    // Active / Confirmed
+    if (document.getElementById('filterActive').checked) models = models.filter(m => m.active);
+    if (document.getElementById('filterConfirmed').checked) models = models.filter(m => m.confirmed);
 
-    // Confirmed only
-    if (document.getElementById('filterConfirmed').checked) {
-      models = models.filter(m => m.confirmed);
-    }
-
-    // Size filter
+    // Dimension targets
     const fw = parseFloat(document.getElementById('filterWidth').value);
     const fh = parseFloat(document.getElementById('filterHeight').value);
     const fd = parseFloat(document.getElementById('filterDepth').value);
-    const closestFit = document.getElementById('closestFit').checked;
+    const tolerance = parseFloat(document.getElementById('fitTolerance').value) || 1;
+    const hasTarget = !isNaN(fw) || !isNaN(fh) || !isNaN(fd);
 
-    if (!closestFit) {
-      // Exact filter: show models whose cutout dimensions contain the entered size
-      if (!isNaN(fw)) {
-        models = models.filter(m => {
-          const w = parseInches(m.cutoutWidth);
-          if (w === null) return true; // keep models without data
-          return Math.abs(w - fw) < 0.5;
-        });
-      }
-      if (!isNaN(fh)) {
-        models = models.filter(m => {
-          const h = parseInches(m.cutoutHeight);
-          if (h === null) return true;
-          return Math.abs(h - fh) < 0.5;
-        });
-      }
-      if (!isNaN(fd)) {
-        models = models.filter(m => {
-          const d = parseInches(m.cutoutDepth);
-          if (d === null) return true;
-          return Math.abs(d - fd) < 0.5;
-        });
-      }
-    } else {
-      // Closest fit mode
-      const priority = document.querySelector('input[name="closestPriority"]:checked').value;
-      const tolerance = parseFloat(document.getElementById('closestTolerance').value) || 2;
-      const targetVal = priority === 'width' ? fw : fh;
-
-      if (!isNaN(targetVal)) {
-        models = models.map(m => {
-          const val = priority === 'width' ? parseInches(m.cutoutWidth) : parseInches(m.cutoutHeight);
-          return { ...m, _closestDiff: val !== null ? Math.abs(val - targetVal) : Infinity };
-        }).filter(m => m._closestDiff <= tolerance);
-      }
+    if (hasTarget) {
+      // Classify each model and filter out those beyond tolerance
+      models = models.map(m => ({
+        ...m,
+        _fitClass: classifyFit(m, fw, fh, fd, tolerance),
+      })).filter(m => m._fitClass !== null);
+    } else if (!search) {
+      // No dimensions and no search — show empty state
+      showEmptyState();
+      return;
     }
 
     // Sort
     const sortBy = document.getElementById('sortBy').value;
-    const sortDir = document.querySelector('input[name="sortDir"]:checked').value;
-    const dir = sortDir === 'asc' ? 1 : -1;
-
-    models.sort((a, b) => {
-      let va, vb;
-      switch (sortBy) {
-        case 'brand':
-          va = a.brand.toLowerCase();
-          vb = b.brand.toLowerCase();
-          return va < vb ? -1 * dir : va > vb ? 1 * dir : 0;
-        case 'model':
-          va = a.id.toLowerCase();
-          vb = b.id.toLowerCase();
-          return va < vb ? -1 * dir : va > vb ? 1 * dir : 0;
-        case 'nominalSize':
-          va = parseInt(a.nominalSize) || 0;
-          vb = parseInt(b.nominalSize) || 0;
-          return (va - vb) * dir;
-        case 'category':
-          va = a.category.toLowerCase();
-          vb = b.category.toLowerCase();
-          return va < vb ? -1 * dir : va > vb ? 1 * dir : 0;
-        case 'width':
-          va = parseInches(a.cutoutWidth) || parseInches(a.width) || 0;
-          vb = parseInches(b.cutoutWidth) || parseInches(b.width) || 0;
-          return (va - vb) * dir;
-        default:
-          return 0;
-      }
-    });
-
-    // In closest fit mode, also sort by distance
-    if (closestFit && models.length > 0 && models[0]._closestDiff !== undefined) {
-      models.sort((a, b) => (a._closestDiff || 0) - (b._closestDiff || 0));
+    if (sortBy === 'fit' && hasTarget) {
+      // Sort: exact first, then close, then near, within each group by width diff
+      const order = { exact: 0, close: 1, near: 2, null: 3 };
+      models.sort((a, b) => {
+        const oa = order[a._fitClass] ?? 3;
+        const ob = order[b._fitClass] ?? 3;
+        if (oa !== ob) return oa - ob;
+        // Secondary: brand
+        return a.brand.toLowerCase() < b.brand.toLowerCase() ? -1 : 1;
+      });
+    } else {
+      models.sort((a, b) => {
+        switch (sortBy) {
+          case 'brand':
+            return a.brand.toLowerCase() < b.brand.toLowerCase() ? -1 : 1;
+          case 'model':
+            return a.id.toLowerCase() < b.id.toLowerCase() ? -1 : 1;
+          case 'nominalSize':
+            return (parseInt(a.nominalSize) || 0) - (parseInt(b.nominalSize) || 0);
+          case 'width':
+            return (parseInches(a.cutoutWidth) || 0) - (parseInches(b.cutoutWidth) || 0);
+          default:
+            return 0;
+        }
+      });
     }
 
     filteredModels = models;
-    renderModels();
-    updateStats();
+    renderModels(fw, fh, fd, hasTarget);
   }
 
-  function getActiveFilterValues(filterType) {
+  function getActiveChips(filterType) {
     return [...document.querySelectorAll(`.filter-chip[data-filter="${filterType}"].active`)]
       .map(el => el.dataset.value);
   }
 
-  function allBrandsCount() {
-    return document.querySelectorAll('.filter-chip[data-filter="brand"]').length;
-  }
-
-  function allCatsCount() {
-    return document.querySelectorAll('.filter-chip[data-filter="category"]').length;
-  }
-
   // ===== Render =====
 
-  function renderModels() {
+  function renderModels(fw, fh, fd, hasTarget) {
     const grid = document.getElementById('modelGrid');
     const noResults = document.getElementById('noResults');
+    const emptyState = document.getElementById('emptyState');
+    const resultsMeta = document.getElementById('resultsMeta');
+
+    emptyState.style.display = 'none';
 
     if (filteredModels.length === 0) {
       grid.innerHTML = '';
-      noResults.style.display = 'block';
+      noResults.style.display = 'flex';
+      resultsMeta.style.display = 'none';
       return;
     }
 
     noResults.style.display = 'none';
+    resultsMeta.style.display = 'flex';
+    document.getElementById('showingModels').textContent = filteredModels.length;
+    document.getElementById('totalModels').textContent = allModels.length;
 
     grid.innerHTML = filteredModels.map(m => {
       const related = getRelatedModels(m.id);
-      const hasSpecs = m.width || m.cutoutWidth;
       const sizeLabel = m.nominalSize ? m.nominalSize + '"' : '';
+      const fitClass = m._fitClass || '';
+      const fitLabel = fitClass === 'exact' ? '✓ Fits' : fitClass === 'close' ? '~ Very Close' : '';
+
+      // Determine if cutout width matches to highlight it
+      const wMatch = hasTarget && !isNaN(fw);
+      const hMatch = hasTarget && !isNaN(fh);
+      const dMatch = hasTarget && !isNaN(fd);
 
       return `
-        <div class="model-card ${m.confirmed ? 'confirmed' : ''}" data-id="${m.id}">
+        <div class="model-card ${fitClass ? 'fit-' + fitClass : ''}" data-id="${escHtml(m.id)}">
+          ${fitLabel ? `<div class="fit-strip">${fitLabel}</div>` : ''}
           <div class="card-header">
             <div>
               <div class="card-model-number">${escHtml(m.id)}</div>
@@ -498,13 +470,14 @@
             <div class="card-badges">
               ${sizeLabel ? `<span class="badge badge-size">${sizeLabel}</span>` : ''}
               ${m.confirmed
-                ? '<span class="badge badge-confirmed">&#10003; Confirmed</span>'
+                ? '<span class="badge badge-confirmed">✓ Confirmed</span>'
                 : '<span class="badge badge-unconfirmed">Unconfirmed</span>'
               }
+              ${!m.active ? '<span class="badge badge-discontinued">Discontinued</span>' : ''}
             </div>
           </div>
           <div class="card-install-type ${m.install === 'Proud' ? 'install-proud' : 'install-flush'}">
-            ${m.install === 'Proud' ? '&#9650;' : '&#9644;'} ${escHtml(m.install)} Install
+            ${m.install === 'Proud' ? '▲' : '▬'} ${escHtml(m.install)} Install
           </div>
           ${(m.trim || m.color) ? `
             <div class="card-trim-color">
@@ -521,9 +494,18 @@
             </div>
             <div class="spec-group">
               <div class="spec-group-title">Cutout Required</div>
-              <div class="spec-row"><span class="spec-label">W</span><span class="spec-value ${!m.cutoutWidth ? 'empty' : ''}">${m.cutoutWidth || '---'}</span></div>
-              <div class="spec-row"><span class="spec-label">H</span><span class="spec-value ${!m.cutoutHeight ? 'empty' : ''}">${m.cutoutHeight || '---'}</span></div>
-              <div class="spec-row"><span class="spec-label">D</span><span class="spec-value ${!m.cutoutDepth ? 'empty' : ''}">${m.cutoutDepth || '---'}</span></div>
+              <div class="spec-row">
+                <span class="spec-label">W</span>
+                <span class="spec-value ${!m.cutoutWidth ? 'empty' : ''} ${wMatch && fitClass ? 'cutout-match' : ''}">${m.cutoutWidth || '---'}</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-label">H</span>
+                <span class="spec-value ${!m.cutoutHeight ? 'empty' : ''} ${hMatch && fitClass ? 'cutout-match' : ''}">${m.cutoutHeight || '---'}</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-label">D</span>
+                <span class="spec-value ${!m.cutoutDepth ? 'empty' : ''} ${dMatch && fitClass ? 'cutout-match' : ''}">${m.cutoutDepth || '---'}</span>
+              </div>
             </div>
           </div>
           ${m.installNote ? `<div class="card-note">${escHtml(m.installNote)}</div>` : ''}
@@ -531,15 +513,15 @@
           <div class="card-actions">
             <button class="btn btn-sm btn-trail" onclick="window.open('https://www.trailappliances.com/search?q=${encodeURIComponent(m.id)}','_blank')">
               Trail
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
             </button>
             ${devMode ? `
-              <button class="btn btn-sm btn-confirm" onclick="confirmModel('${m.id}')">${m.confirmed ? 'Unconfirm' : 'Confirm'}</button>
-              <button class="btn btn-sm btn-icon" onclick="editModel('${m.id}')" title="Edit">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              <button class="btn btn-sm btn-confirm" onclick="confirmModel('${escHtml(m.id)}')">${m.confirmed ? 'Unconfirm' : 'Confirm'}</button>
+              <button class="btn btn-sm btn-icon" onclick="editModel('${escHtml(m.id)}')" title="Edit">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
-              <button class="btn btn-sm btn-icon" onclick="relateModel('${m.id}')" title="Related Models">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+              <button class="btn btn-sm btn-icon" onclick="relateModel('${escHtml(m.id)}')" title="Related Models">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
               </button>
             ` : ''}
           </div>
@@ -548,38 +530,12 @@
     }).join('');
   }
 
-  function escHtml(str) {
-    if (!str) return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  // ===== Stats =====
-
-  function updateStats() {
-    const confirmed = getStorage(STORAGE_KEYS.confirmed, {});
-    const confirmedCount = allModels.filter(m => confirmed[m.id]).length;
-    const total = allModels.length;
-
-    document.getElementById('totalModels').textContent = total;
-    document.getElementById('showingModels').textContent = filteredModels.length;
-    document.getElementById('confirmedCount').textContent = confirmedCount + ' / ' + total;
-
-    const pct = total > 0 ? Math.round((confirmedCount / total) * 100) : 0;
-    document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('progressPercent').textContent = pct + '%';
-  }
-
-  // ===== Model Actions (Global Scope) =====
+  // ===== Dev Actions =====
 
   window.confirmModel = function (id) {
     const confirmed = getStorage(STORAGE_KEYS.confirmed, {});
-    if (confirmed[id]) {
-      delete confirmed[id];
-    } else {
-      confirmed[id] = true;
-    }
+    if (confirmed[id]) delete confirmed[id];
+    else confirmed[id] = true;
     setStorage(STORAGE_KEYS.confirmed, confirmed);
     applyFilters();
   };
@@ -587,7 +543,6 @@
   window.editModel = function (id) {
     const model = allModels.find(m => m.id === id);
     if (!model) return;
-
     document.getElementById('editModelId').textContent = id;
     document.getElementById('editBrand').value = model.brand || '';
     document.getElementById('editCategory').value = model.category || '';
@@ -603,7 +558,6 @@
     document.getElementById('editCutoutHeight').value = model.cutoutHeight || '';
     document.getElementById('editCutoutDepth').value = model.cutoutDepth || '';
     document.getElementById('editInstallNote').value = model.installNote || '';
-
     document.getElementById('editModal').style.display = 'flex';
     document.getElementById('editModal').dataset.modelId = id;
   };
@@ -629,8 +583,6 @@
     };
     setStorage(STORAGE_KEYS.overrides, overrides);
     document.getElementById('editModal').style.display = 'none';
-
-    // Update model in allModels
     const idx = allModels.findIndex(m => m.id === id);
     if (idx >= 0) Object.assign(allModels[idx], overrides[id]);
     applyFilters();
@@ -648,11 +600,10 @@
     const container = document.getElementById('relateList');
     const related = getRelatedModels(currentId);
     const models = allModels.filter(m => m.id !== currentId);
-
     container.innerHTML = models.map(m => `
-      <label class="relate-item" data-id="${m.id}">
-        <input type="checkbox" ${related.includes(m.id) ? 'checked' : ''} value="${m.id}">
-        <span><strong>${escHtml(m.id)}</strong> <span class="relate-item-brand">${escHtml(m.brand)} - ${escHtml(m.category)}</span></span>
+      <label class="relate-item" data-id="${escHtml(m.id)}">
+        <input type="checkbox" ${related.includes(m.id) ? 'checked' : ''} value="${escHtml(m.id)}">
+        <span><strong>${escHtml(m.id)}</strong> <span class="relate-item-brand">${escHtml(m.brand)} — ${escHtml(m.category)}</span></span>
       </label>
     `).join('');
   }
@@ -660,9 +611,8 @@
   function filterRelateList() {
     const search = document.getElementById('relateSearch').value.toLowerCase();
     document.querySelectorAll('.relate-item').forEach(item => {
-      const id = item.dataset.id.toLowerCase();
-      const text = item.textContent.toLowerCase();
-      item.style.display = (id.includes(search) || text.includes(search)) ? 'flex' : 'none';
+      const match = item.dataset.id.toLowerCase().includes(search) || item.textContent.toLowerCase().includes(search);
+      item.style.display = match ? 'flex' : 'none';
     });
   }
 
@@ -671,33 +621,23 @@
     const checked = [...document.querySelectorAll('#relateList input:checked')].map(c => c.value);
     const groups = getStorage(STORAGE_KEYS.related, {});
 
-    // Remove current model from any existing group
     for (const groupId of Object.keys(groups)) {
       groups[groupId] = groups[groupId].filter(id => id !== currentId);
       if (groups[groupId].length <= 1) delete groups[groupId];
     }
 
-    // Create new group if any checked
     if (checked.length > 0) {
       const groupMembers = [currentId, ...checked];
-      // Check if any checked models are already in a group
       let existingGroupId = null;
       for (const memberId of checked) {
         for (const gid of Object.keys(groups)) {
-          if (groups[gid].includes(memberId)) {
-            existingGroupId = gid;
-            break;
-          }
+          if (groups[gid].includes(memberId)) { existingGroupId = gid; break; }
         }
         if (existingGroupId) break;
       }
-
       if (existingGroupId) {
-        // Merge into existing group
-        const merged = [...new Set([...groups[existingGroupId], ...groupMembers])];
-        groups[existingGroupId] = merged;
+        groups[existingGroupId] = [...new Set([...groups[existingGroupId], ...groupMembers])];
       } else {
-        // Create new group
         groups['group_' + Date.now()] = groupMembers;
       }
     }
@@ -709,17 +649,11 @@
 
   function handleAddModel() {
     const id = document.getElementById('addModelId').value.trim();
-    if (!id) {
-      alert('Model number is required.');
-      return;
-    }
-    if (allModels.some(m => m.id === id)) {
-      alert('A model with this number already exists.');
-      return;
-    }
+    if (!id) { alert('Model number is required.'); return; }
+    if (allModels.some(m => m.id === id)) { alert('A model with this number already exists.'); return; }
 
     const newModel = {
-      id: id,
+      id,
       brand: document.getElementById('addBrand').value,
       category: document.getElementById('addCategory').value,
       active: true,
@@ -738,33 +672,31 @@
       color: document.getElementById('addColor').value,
     };
 
-    // Save to localStorage added models
     const addedModels = getStorage(STORAGE_KEYS.addedModels, []);
     addedModels.push(newModel);
     setStorage(STORAGE_KEYS.addedModels, addedModels);
-
-    // Add to in-memory list
     allModels.push(newModel);
 
-    // Rebuild filters and apply
     buildFilterChips();
-    // Reattach filter chip listeners
-    document.querySelectorAll('.filter-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        chip.classList.toggle('active');
-        applyFilters();
+    // Re-delegate filter chips
+    ['brandFilters', 'categoryFilters', 'nominalSizeFilters', 'installFilters'].forEach(filterId => {
+      const el = document.getElementById(filterId);
+      el.replaceWith(el.cloneNode(true));
+      document.getElementById(filterId).addEventListener('click', e => {
+        const chip = e.target.closest('.filter-chip');
+        if (chip) { chip.classList.toggle('active'); applyFilters(); }
       });
     });
-    applyFilters();
 
-    // Clear form
     document.getElementById('addModal').style.display = 'none';
-    ['addModelId', 'addBrand', 'addNominalSize', 'addWidth', 'addHeight', 'addDepth',
-     'addCutoutWidth', 'addCutoutHeight', 'addCutoutDepth', 'addInstallNote', 'addTrim', 'addColor'
-    ].forEach(id => document.getElementById(id).value = '');
+    ['addModelId','addBrand','addNominalSize','addWidth','addHeight','addDepth',
+     'addCutoutWidth','addCutoutHeight','addCutoutDepth','addInstallNote','addTrim','addColor']
+      .forEach(fid => { document.getElementById(fid).value = ''; });
+
+    applyFilters();
   }
 
-  // ===== Init =====
+  // ===== Boot =====
   loadData();
 
 })();
