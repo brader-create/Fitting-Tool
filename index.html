@@ -31,19 +31,22 @@
     </div>
   </header>
 
-  <!-- Hero / Search Panel -->
+  <!-- Hero -->
   <section class="hero">
     <div class="hero-inner">
 
-      <!-- Step 1: Appliance type -->
+      <!-- Appliance type selector (two tiers) -->
       <div class="step-block">
         <div class="step-label">Appliance type</div>
-        <div class="type-pills" id="typePills">
-          <!-- built by JS from data -->
+        <div class="type-pills main-pills" id="mainTypePills">
+          <!-- built by JS -->
+        </div>
+        <div class="type-pills sub-pills" id="subTypePills" style="display:none;">
+          <!-- built by JS when main selected -->
         </div>
       </div>
 
-      <!-- Step 2: Cutout dimensions -->
+      <!-- Cutout dimensions -->
       <div class="step-block">
         <div class="step-label">Cutout dimensions <span class="step-hint">(inches)</span></div>
         <div class="dimension-inputs">
@@ -135,18 +138,23 @@
     <div class="results-inner">
 
       <div class="results-meta" id="resultsMeta" style="display:none;">
-        <div class="results-count">Showing <strong id="showingModels">0</strong> of <strong id="totalModels">0</strong> models</div>
+        <div class="results-left">
+          <div class="results-count">Showing <strong id="showingModels">0</strong> of <strong id="totalModels">0</strong> models</div>
+          <div class="confirmed-bar-wrap">
+            <div class="confirmed-bar" id="confirmedBar"></div>
+            <span class="confirmed-label" id="confirmedLabel">0 confirmed</span>
+          </div>
+        </div>
         <div class="fit-legend" id="fitLegend" style="display:none;">
           <span class="legend-dot green"></span> Fits
-          <span class="legend-dot orange"></span> Very close
-          <span class="legend-dot none"></span> Within tolerance
+          <span class="legend-dot orange"></span> Very close (within 0.1")
         </div>
       </div>
 
       <div class="model-grid" id="modelGrid"></div>
 
       <div class="no-results" id="noResults" style="display:none;">
-        <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         <p>No models match your search.</p>
         <p class="hint-text">Try widening the tolerance or adjusting your dimensions.</p>
       </div>
