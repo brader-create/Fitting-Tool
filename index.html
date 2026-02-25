@@ -24,36 +24,94 @@
         </svg>
         <h1 class="logo-text">Brad's Handy Dandy Fitting Tool</h1>
       </div>
-      <button id="themeToggle" class="btn btn-theme" title="Toggle theme">
-        <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-        <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-      </button>
+      <div class="header-actions">
+        <!-- Fraction converter toggle -->
+        <button id="converterBtn" class="btn btn-theme" title="Fraction ↔ Decimal converter">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
+          </svg>
+        </button>
+        <button id="themeToggle" class="btn btn-theme" title="Toggle theme">
+          <svg class="sun-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg class="moon-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+      </div>
     </div>
   </header>
+
+  <!-- Fraction Converter Panel -->
+  <div id="converterPanel" class="converter-panel">
+    <div class="converter-header">
+      <span class="converter-title">Fraction → Decimal</span>
+      <button id="converterClose" class="converter-close" title="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="converter-body">
+      <div class="converter-live">
+        <label class="conv-label">Convert a measurement</label>
+        <input type="text" id="converterInput" class="input" placeholder='e.g. 34 3/4"'>
+        <div id="converterResult" class="converter-result"></div>
+      </div>
+      <div class="conv-divider"></div>
+      <div class="conv-label" style="margin-bottom:8px;">Fractional reference</div>
+      <table class="fraction-table">
+        <thead>
+          <tr><th>Fraction</th><th>Decimal</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1/16</td><td>0.0625</td></tr>
+          <tr><td>1/8</td><td>0.125</td></tr>
+          <tr><td>3/16</td><td>0.1875</td></tr>
+          <tr><td>1/4</td><td>0.25</td></tr>
+          <tr><td>5/16</td><td>0.3125</td></tr>
+          <tr><td>3/8</td><td>0.375</td></tr>
+          <tr><td>7/16</td><td>0.4375</td></tr>
+          <tr><td>1/2</td><td>0.5</td></tr>
+          <tr><td>9/16</td><td>0.5625</td></tr>
+          <tr><td>5/8</td><td>0.625</td></tr>
+          <tr><td>11/16</td><td>0.6875</td></tr>
+          <tr><td>3/4</td><td>0.75</td></tr>
+          <tr><td>13/16</td><td>0.8125</td></tr>
+          <tr><td>7/8</td><td>0.875</td></tr>
+          <tr><td>15/16</td><td>0.9375</td></tr>
+        </tbody>
+      </table>
+      <div class="conv-divider"></div>
+      <div class="conv-label" style="margin-bottom:8px;">Mixed number examples</div>
+      <table class="fraction-table">
+        <tbody>
+          <tr><td>34 1/4"</td><td>34.25"</td></tr>
+          <tr><td>34 1/2"</td><td>34.5"</td></tr>
+          <tr><td>34 3/4"</td><td>34.75"</td></tr>
+          <tr><td>35 1/8"</td><td>35.125"</td></tr>
+          <tr><td>35 7/8"</td><td>35.875"</td></tr>
+          <tr><td>36 15/16"</td><td>36.9375"</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div id="converterOverlay" class="converter-overlay"></div>
 
   <!-- Hero -->
   <section class="hero">
     <div class="hero-inner">
 
-      <!-- Appliance type selector (two tiers) -->
+      <!-- Two-tier appliance type selector -->
       <div class="step-block">
         <div class="step-label">Appliance type</div>
-        <div class="type-pills main-pills" id="mainTypePills">
-          <!-- built by JS -->
-        </div>
-        <div class="type-pills sub-pills" id="subTypePills" style="display:none;">
-          <!-- built by JS when main selected -->
-        </div>
+        <div class="type-pills main-pills" id="mainTypePills"></div>
+        <div class="type-pills sub-pills" id="subTypePills" style="display:none;"></div>
       </div>
 
       <!-- Cutout dimensions -->
       <div class="step-block">
-        <div class="step-label">Cutout dimensions <span class="step-hint">(inches)</span></div>
+        <div class="step-label">Cutout dimensions <span class="step-hint">(inches — decimals or fractions)</span></div>
         <div class="dimension-inputs">
           <div class="dim-field">
             <label for="filterWidth">Width</label>
             <div class="dim-input-wrap">
-              <input type="number" id="filterWidth" class="dim-input" placeholder="e.g. 34.75" step="0.125">
+              <input type="number" id="filterWidth" class="dim-input" placeholder="e.g. 34.75" step="0.0625">
               <span class="dim-unit">in</span>
             </div>
           </div>
@@ -61,7 +119,7 @@
           <div class="dim-field">
             <label for="filterHeight">Height</label>
             <div class="dim-input-wrap">
-              <input type="number" id="filterHeight" class="dim-input" placeholder="optional" step="0.125">
+              <input type="number" id="filterHeight" class="dim-input" placeholder="optional" step="0.0625">
               <span class="dim-unit">in</span>
             </div>
           </div>
@@ -69,7 +127,7 @@
           <div class="dim-field">
             <label for="filterDepth">Depth</label>
             <div class="dim-input-wrap">
-              <input type="number" id="filterDepth" class="dim-input" placeholder="optional" step="0.125">
+              <input type="number" id="filterDepth" class="dim-input" placeholder="optional" step="0.0625">
               <span class="dim-unit">in</span>
             </div>
           </div>
@@ -81,11 +139,11 @@
         </div>
       </div>
 
-      <!-- Search + filters -->
+      <!-- Search + filters toggle -->
       <div class="search-row">
         <div class="search-wrap">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input type="text" id="searchInput" class="search-input" placeholder="Search model number or brand…">
+          <input type="text" id="searchInput" class="search-input" placeholder="Search model number — exact match highlights in gold">
         </div>
         <button id="filtersToggleBtn" class="btn btn-secondary">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -123,7 +181,7 @@
               <option value="brand">Brand</option>
               <option value="model">Model Number</option>
               <option value="nominalSize">Nominal Size</option>
-              <option value="width">Width</option>
+              <option value="width">Cutout Width</option>
             </select>
           </div>
         </div>
@@ -137,6 +195,15 @@
   <main class="results-section">
     <div class="results-inner">
 
+      <!-- Loading state -->
+      <div class="loading-state" id="loadingState">
+        <div class="loading-spinner"></div>
+        <p>Loading models…</p>
+      </div>
+
+      <!-- Data source notice -->
+      <div id="dataNotice" class="data-notice" style="display:none;"></div>
+
       <div class="results-meta" id="resultsMeta" style="display:none;">
         <div class="results-left">
           <div class="results-count">Showing <strong id="showingModels">0</strong> of <strong id="totalModels">0</strong> models</div>
@@ -146,8 +213,9 @@
           </div>
         </div>
         <div class="fit-legend" id="fitLegend" style="display:none;">
+          <span class="legend-dot gold"></span> Exact model match
           <span class="legend-dot green"></span> Fits
-          <span class="legend-dot orange"></span> Very close (within 0.1")
+          <span class="legend-dot orange"></span> Very close (±0.1")
         </div>
       </div>
 
