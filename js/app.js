@@ -24,25 +24,29 @@
   const STORAGE_THEME   = 'fittingTool_theme';
 
   // ===== CSV column → model field mapping =====
-  // Each field lists normalised column names to try, in priority order.
-  // Normalise = lowercase + strip non-alphanumeric.
+  // Exact column names from the Google Sheet (normalised = lowercase, strip non-alphanumeric).
+  // Fallback variants kept for resilience.
   const COL_MAP = {
-    id:           ['model','modelnumber','modelno','modelnum','id','sku','itemnumber','item'],
-    brand:        ['brand','manufacturer','make','brandname'],
-    category:     ['category','type','appliancetype','appliancecategory','producttype','productcategory'],
-    active:       ['active','status','isactive','current','available'],
-    confirmed:    ['confirmed','verified','checked','isconfirmed','specconfirmed'],
-    nominalSize:  ['nominalsize','nominal','nominalwidth','size','appliancesize'],
-    width:        ['width','appliancewidth','unitwidth','bodywidth','overallwidth','productwidth'],
-    height:       ['height','applianceheight','unitheight','bodyheight','overallheight','productheight'],
-    depth:        ['depth','appliancedepth','unitdepth','bodydepth','overalldepth','productdepth'],
-    install:      ['install','installtype','installation','installstyle','mount','mounttype'],
-    cutoutWidth:  ['cutoutwidth','openingwidth','holewidth','roughwidth','cutwidth','cutoutw','cowidth'],
-    cutoutHeight: ['cutoutheight','openingheight','holeheight','roughheight','cutheight','cutouth','coheight'],
-    cutoutDepth:  ['cutoutdepth','openingdepth','holedepth','roughdepth','cutdepth','cutoutd','codepth'],
-    installNote:  ['installnote','notes','note','installationnote','installnotes','comments','remark','remarks'],
-    trim:         ['trim','trimtype','trimstyle','trimkit'],
-    color:        ['color','colour','finish','coloroption','colourfinish'],
+    id:              ['model','modelnumber','modelno','id','sku'],
+    brand:           ['brand','manufacturer','make'],
+    category:        ['category','type','appliancetype','producttype'],
+    subcategory:     ['subcategory','subcat','subtype','style','appliancestyle','subcategory'],
+    active:          ['active','status','isactive','available'],
+    confirmed:       ['confirmed','verified','checked'],
+    nominalSize:     ['size','nominalsize','nominal'],
+    width:           ['appwidth','appliancewidth','unitwidth','width'],
+    height:          ['appheight','applianceheight','unitheight','height'],
+    depth:           ['appdepth','appliancedepth','unitdepth','depth'],
+    install:         ['install','installtype','installation'],
+    cutoutWidthMin:  ['minwidth','cutoutwidthmin','minimumwidth','minw','cowidthmin','minwidthcutout'],
+    cutoutWidthMax:  ['maxwidth','cutoutwidthmax','maximumwidth','maxw','cowidthmax','maxwidthcutout'],
+    cutoutHeightMin: ['minheight','cutoutheightmin','minimumheight','minh','coheightmin'],
+    cutoutHeightMax: ['maxheight','cutoutheightmax','maximumheight','maxh','coheightmax'],
+    cutoutDepthMin:  ['mindepth','cutoutdepthmin','minimumdepth','mind','codepthmin'],
+    cutoutDepthMax:  ['maxdepth','cutoutdepthmax','maximumdepth','maxd','codepthmax'],
+    installNote:     ['note','notes','installnote','installationnote','comments'],
+    trim:            ['trim','trimtype','trimstyle'],
+    color:           ['color','colour','finish'],
   };
 
   // ===== Helpers =====
@@ -72,6 +76,30 @@
     const d = document.createElement('div');
     d.textContent = str;
     return d.innerHTML;
+  }
+
+  /** Build a display string from a min/max pair. */
+  function fmtRange(min, max) {
+    if (!min && !max) return '';
+    if (!min) return max;
+    if (!max || min === max) return min;
+    return min + ' – ' + max;
+  }
+
+  /**
+   * Given a model's cutout range [minVal, maxVal] and a target,
+   * return how far outside the acceptable range the target falls.
+   * 0 = within range (perfect fit).
+   */
+  function rangeDiff(minStr, maxStr, target) {
+    const lo = parseInches(minStr);
+    const hi = parseInches(maxStr);
+    if (lo === null && hi === null) return null; // no spec data
+    const lower = lo !== null ? lo : hi;
+    const upper = hi !== null ? hi : lo;
+    if (target < lower) return lower - target;
+    if (target > upper) return target - upper;
+    return 0;
   }
 
   function isTruthy(val) {
@@ -132,27 +160,47 @@
       const id = get('id');
       if (!id) continue; // skip rows with no model number
 
-      const active = get('active');
-      const confirmed = get('confirmed');
+      const active      = get('active');
+      const confirmed   = get('confirmed');
+      const category    = get('category');
+      const subcategory = get('subcategory');
+
+      // Cutout min/max — build display range strings
+      const cwMin = get('cutoutWidthMin');
+      const cwMax = get('cutoutWidthMax');
+      const chMin = get('cutoutHeightMin');
+      const chMax = get('cutoutHeightMax');
+      const cdMin = get('cutoutDepthMin');
+      const cdMax = get('cutoutDepthMax');
 
       models.push({
         id,
-        brand:        get('brand'),
-        category:     get('category'),
-        active:       active === '' ? true : !['false','no','discontinued','0','n'].includes(active.toLowerCase()),
-        confirmed:    isTruthy(confirmed),
-        nominalSize:  get('nominalSize'),
-        width:        get('width'),
-        height:       get('height'),
-        depth:        get('depth'),
-        builtIn:      true,
-        install:      get('install'),
-        cutoutWidth:  get('cutoutWidth'),
-        cutoutHeight: get('cutoutHeight'),
-        cutoutDepth:  get('cutoutDepth'),
-        installNote:  get('installNote'),
-        trim:         get('trim'),
-        color:        get('color'),
+        brand:           get('brand'),
+        category,                          // e.g. "Cooktop"
+        subcategory,                       // e.g. "Induction" or "Induction - Downdraft"
+        fullCategory:    subcategory ? category + ' - ' + subcategory : category,
+        active:          active === '' ? true : !['false','no','discontinued','0','n'].includes(active.toLowerCase()),
+        confirmed:       isTruthy(confirmed),
+        nominalSize:     get('nominalSize'),
+        width:           get('width'),
+        height:          get('height'),
+        depth:           get('depth'),
+        builtIn:         true,
+        install:         get('install'),
+        // Raw min/max for fit calculation
+        cutoutWidthMin:  cwMin,
+        cutoutWidthMax:  cwMax,
+        cutoutHeightMin: chMin,
+        cutoutHeightMax: chMax,
+        cutoutDepthMin:  cdMin,
+        cutoutDepthMax:  cdMax,
+        // Display strings (range if min ≠ max)
+        cutoutWidth:     fmtRange(cwMin, cwMax),
+        cutoutHeight:    fmtRange(chMin, chMax),
+        cutoutDepth:     fmtRange(cdMin, cdMax),
+        installNote:     get('installNote'),
+        trim:            get('trim'),
+        color:           get('color'),
       });
     }
 
@@ -408,18 +456,27 @@
     if (!hasTarget) return 'none';
 
     let maxDiff = 0, compared = 0;
+
     if (!isNaN(fw)) {
-      const w = parseInches(model.cutoutWidth) ?? parseInches(model.width);
-      if (w !== null) { maxDiff = Math.max(maxDiff, Math.abs(w - fw)); compared++; }
+      // Prefer min/max range fields (CSV); fall back to single value (JSON)
+      const d = (model.cutoutWidthMin || model.cutoutWidthMax)
+        ? rangeDiff(model.cutoutWidthMin, model.cutoutWidthMax, fw)
+        : (() => { const w = parseInches(model.cutoutWidth) ?? parseInches(model.width); return w !== null ? Math.abs(w - fw) : null; })();
+      if (d !== null) { maxDiff = Math.max(maxDiff, d); compared++; }
     }
     if (!isNaN(fh)) {
-      const h = parseInches(model.cutoutHeight) ?? parseInches(model.height);
-      if (h !== null) { maxDiff = Math.max(maxDiff, Math.abs(h - fh)); compared++; }
+      const d = (model.cutoutHeightMin || model.cutoutHeightMax)
+        ? rangeDiff(model.cutoutHeightMin, model.cutoutHeightMax, fh)
+        : (() => { const h = parseInches(model.cutoutHeight) ?? parseInches(model.height); return h !== null ? Math.abs(h - fh) : null; })();
+      if (d !== null) { maxDiff = Math.max(maxDiff, d); compared++; }
     }
     if (!isNaN(fd)) {
-      const d = parseInches(model.cutoutDepth) ?? parseInches(model.depth);
-      if (d !== null) { maxDiff = Math.max(maxDiff, Math.abs(d - fd)); compared++; }
+      const d = (model.cutoutDepthMin || model.cutoutDepthMax)
+        ? rangeDiff(model.cutoutDepthMin, model.cutoutDepthMax, fd)
+        : (() => { const dep = parseInches(model.cutoutDepth) ?? parseInches(model.depth); return dep !== null ? Math.abs(dep - fd) : null; })();
+      if (d !== null) { maxDiff = Math.max(maxDiff, d); compared++; }
     }
+
     if (compared === 0) return 'none';
     if (maxDiff > tolerance + ORANGE_BUFFER) return null;  // hide
     if (maxDiff <= tolerance)                return 'exact'; // green
@@ -438,13 +495,29 @@
 
     // Appliance type
     if (selectedMain) {
-      if (selectedSub) {
-        const target = norm(selectedMain + ' - ' + selectedSub);
-        models = models.filter(m => norm(m.category) === target);
-      } else {
-        const prefix = norm(selectedMain);
-        models = models.filter(m => norm(m.category).startsWith(prefix));
-      }
+      const mainNorm = norm(selectedMain);
+      models = models.filter(m => {
+        // CSV models: category field is just the main type (e.g. "Cooktop")
+        // JSON fallback: category is combined (e.g. "Cooktop - Induction")
+        const cat = norm(m.category || '');
+        const mainMatch = m.subcategory !== undefined
+          ? cat === mainNorm                          // CSV: exact match
+          : cat === mainNorm || cat.startsWith(mainNorm + '-') || cat.startsWith(mainNorm + ' ');
+        if (!mainMatch) return false;
+
+        if (selectedSub) {
+          const subNorm = norm(selectedSub);
+          // CSV: model.subcategory e.g. "Induction" or "Induction - Downdraft"
+          if (m.subcategory !== undefined) {
+            return norm(m.subcategory).startsWith(subNorm);
+          }
+          // JSON fallback: check part after " - "
+          const parts = (m.category || '').split(' - ');
+          const modelSub = parts.slice(1).join(' - ');
+          return norm(modelSub).startsWith(subNorm);
+        }
+        return true;
+      });
     }
 
     // Search
@@ -574,7 +647,7 @@
           <div class="card-top">
             <div>
               <div class="card-model">${escHtml(m.id)}</div>
-              <div class="card-info">${escHtml(m.brand || '')}${m.category ? ' · ' + escHtml(m.category) : ''}</div>
+              <div class="card-info">${escHtml(m.brand || '')}${(m.fullCategory || m.category) ? ' · ' + escHtml(m.fullCategory || m.category) : ''}</div>
             </div>
             <div class="card-badges">
               ${sizeLabel ? `<span class="badge badge-size">${sizeLabel}</span>` : ''}
