@@ -13,7 +13,7 @@
   const TYPE_HIERARCHY = {
     'Cooktop':   ['Electric', 'Gas', 'Induction'],
     'Rangetop':  ['Electric', 'Gas', 'Induction'],
-    'Wall Oven': ['Single', 'Double', 'Combination'],
+    'Wall Oven': ['Single', 'Double', 'Combi'],
     'Microwave': ['Built-in', 'Trim Kit'],
   };
 
@@ -46,7 +46,10 @@
     cutoutDepthMax:  ['maxdepth','cutoutdepthmax','maximumdepth','maxd','codepthmax'],
     installNote:     ['note','notes','installnote','installationnote','comments'],
     trim:            ['trim','trimtype','trimstyle'],
-    color:           ['color','colour','finish'],
+    color:           ['color','colours','colors','colour','finish'],
+    source:          ['source','datasource','reference','src'],
+    wattage:         ['wattage','watts','power'],
+    microwavePairs:  ['microwavepairs','pairs','pairedmodels','microwavemodel','compatiblemodels'],
   };
 
   // ===== Helpers =====
@@ -215,6 +218,9 @@
         installNote:     get('installNote'),
         trim:            get('trim'),
         color:           get('color'),
+        source:          get('source'),
+        wattage:         get('wattage'),
+        microwavePairs:  get('microwavePairs'),
       });
     }
 
@@ -230,22 +236,32 @@
     try {
       const manifest = await fetch('data/manifest.json').then(r => r.json());
 
-      // Try Google Sheet CSV first
-      if (manifest.sheetCsvUrl) {
+      // Try Google Sheet CSV(s) — supports multiple tabs via additionalSheetCsvUrls
+      const csvUrls = [
+        manifest.sheetCsvUrl,
+        ...(manifest.additionalSheetCsvUrls || []),
+      ].filter(Boolean);
+
+      if (csvUrls.length > 0) {
         try {
-          const csvText = await fetch(manifest.sheetCsvUrl).then(r => {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.text();
-          });
-          const models = parseCSV(csvText);
-          if (models.length > 0) {
-            allModels = dedup(models);
-            console.log('[FittingTool] Loaded', allModels.length, 'models from Google Sheet');
+          const allCsvModels = [];
+          for (const url of csvUrls) {
+            const csvText = await fetch(url).then(r => {
+              if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + url);
+              return r.text();
+            });
+            const parsed = parseCSV(csvText);
+            console.log('[FittingTool] Fetched', parsed.length, 'models from', url);
+            allCsvModels.push(...parsed);
+          }
+          if (allCsvModels.length > 0) {
+            allModels = dedup(allCsvModels);
+            console.log('[FittingTool] Total:', allModels.length, 'models from', csvUrls.length, 'sheet tab(s)');
             loading.style.display = 'none';
             initUI();
             return;
           }
-          throw new Error('Sheet returned 0 models');
+          throw new Error('All sheets returned 0 models');
         } catch (sheetErr) {
           console.warn('[FittingTool] Sheet load failed, falling back to local JSON:', sheetErr.message);
           notice.textContent = '⚠ Could not load live data from Google Sheet — showing cached local data.';
@@ -555,26 +571,39 @@
 
     // Appliance type
     if (selectedMain) {
-      const mainNorm = norm(selectedMain);
+      const mainNorm  = norm(selectedMain);
+      // Normalised subcategory names for this main type (e.g. ['trimkit','builtin'])
+      const subNorms  = (TYPE_HIERARCHY[selectedMain] || []).map(norm);
+
       models = models.filter(m => {
-        // CSV models: category field is just the main type (e.g. "Cooktop")
-        // JSON fallback: category is combined (e.g. "Cooktop - Induction")
         const cat = norm(m.category || '');
-        const mainMatch = m.subcategory !== undefined
-          ? cat === mainNorm                          // CSV: exact match
-          : cat === mainNorm || cat.startsWith(mainNorm + '-') || cat.startsWith(mainNorm + ' ');
+
+        // A row matches the main type if:
+        //   a) its category field equals the main type norm ("microwave", "cooktop"…)
+        //   b) its category field IS one of this type's subcategories ("trimkit", "single"…)
+        //      — happens when the sheet has no separate subcategory column
+        //   c) JSON fallback: combined category starts with the main type
+        const mainMatch =
+          cat === mainNorm ||
+          subNorms.some(s => cat === s || cat.startsWith(s)) ||
+          (m.subcategory === undefined &&
+            (cat.startsWith(mainNorm + '-') || cat.startsWith(mainNorm + ' ')));
+
         if (!mainMatch) return false;
 
         if (selectedSub) {
           const subNorm = norm(selectedSub);
-          // CSV: model.subcategory e.g. "Induction" or "Induction - Downdraft"
-          if (m.subcategory !== undefined) {
+          // Prefer explicit subcategory field (cooktops, wall ovens, etc.)
+          if (m.subcategory) {
             return norm(m.subcategory).startsWith(subNorm);
           }
+          // No subcategory column: check if category itself contains the subtype
+          // e.g. category = "Trim Kit" → matches "Trim Kit" selection
+          if (cat.includes(subNorm)) return true;
           // JSON fallback: check part after " - "
-          const parts = (m.category || '').split(' - ');
-          const modelSub = parts.slice(1).join(' - ');
-          return norm(modelSub).startsWith(subNorm);
+          const parts    = (m.category || '').split(' - ');
+          const modelSub = norm(parts.slice(1).join(' - '));
+          return modelSub.startsWith(subNorm);
         }
         return true;
       });
@@ -781,6 +810,14 @@
             </div>
           </div>
           ${m.installNote ? `<div class="card-note">${escHtml(m.installNote)}</div>` : ''}
+          ${m.microwavePairs ? (() => {
+            const pairs = m.microwavePairs.split(/[,;]+/).map(p => p.trim()).filter(Boolean);
+            return `<div class="card-pairs">
+              <span class="pairs-label">Pairs with</span>
+              ${pairs.map(p => `<code class="pairs-model">${escHtml(p)}</code>`).join('')}
+            </div>`;
+          })() : ''}
+          ${m.color ? `<div class="card-colors"><span class="colors-label">Colors</span><span class="colors-val">${escHtml(m.color)}</span></div>` : ''}
           <a href="${trailUrl}" target="_blank" rel="noopener" class="btn-trail">
             Trail
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>

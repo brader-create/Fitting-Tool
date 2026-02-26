@@ -660,6 +660,35 @@ select.input { cursor: pointer; }
   border-left: 3px solid var(--accent);
 }
 
+/* Microwave pairs */
+.card-pairs {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  background: var(--accent-light); border-radius: var(--radius-sm);
+  padding: 5px 9px;
+}
+.pairs-label {
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--accent); white-space: nowrap;
+}
+.pairs-model {
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-size: 0.7rem; color: var(--accent);
+  background: var(--bg-card); border: 1px solid var(--accent-light);
+  border-radius: 4px; padding: 1px 5px;
+}
+
+/* Color options */
+.card-colors {
+  display: flex; align-items: center; gap: 6px;
+}
+.colors-label {
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-muted); white-space: nowrap;
+}
+.colors-val {
+  font-size: 0.72rem; color: var(--text-secondary);
+}
+
 /* ===== No results ===== */
 .no-results {
   text-align: center; padding: 56px 20px; color: var(--text-muted);

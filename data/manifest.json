@@ -1,5 +1,6 @@
 {
   "sheetCsvUrl": "https://docs.google.com/spreadsheets/d/e/2PACX-1vTU3dwQK8EJV6oDOccH22Oxg7mQQtYnnZrio3vi3LnhNK4SjHapasBuf4Vf6YGT_AVWCX6gsZ_B5V8E/pub?output=csv",
+  "additionalSheetCsvUrls": [],
   "basePack": "appliances.json",
   "expansionPacks": []
 }
