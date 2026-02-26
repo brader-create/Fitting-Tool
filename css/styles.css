@@ -355,6 +355,12 @@ select.input { cursor: pointer; }
 
 /* ===== Dimensions ===== */
 .dimension-inputs { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+/* Explicit default order so JS can swap H↔D for cooktop/rangetop */
+.dimension-inputs > :nth-child(1) { order: 1; }
+.dimension-inputs > :nth-child(2) { order: 2; }
+.dimension-inputs > :nth-child(3) { order: 3; }
+.dimension-inputs > :nth-child(4) { order: 4; }
+.dimension-inputs > :nth-child(5) { order: 5; }
 
 .dim-field {
   display: flex; flex-direction: column; gap: 5px;
@@ -381,7 +387,22 @@ select.input { cursor: pointer; }
 .dim-unit {
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
   font-size: 0.68rem; color: var(--text-muted); pointer-events: none;
+  transition: opacity var(--transition);
 }
+
+/* × clear button for dimension inputs */
+.dim-clear {
+  display: none;
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: 0.95rem; line-height: 1;
+  padding: 2px 5px; border-radius: 50%;
+  align-items: center; justify-content: center;
+  transition: color var(--transition), background var(--transition);
+}
+.dim-clear:hover { color: var(--text); background: var(--bg-hover); }
+.dim-input:not(:placeholder-shown) + .dim-clear { display: flex; }
+.dim-input:not(:placeholder-shown) ~ .dim-unit   { opacity: 0; }
 
 .dim-sep { font-size: 1.2rem; color: var(--text-muted); padding-bottom: 10px; flex-shrink: 0; user-select: none; }
 
@@ -396,7 +417,7 @@ select.input { cursor: pointer; }
 .search-wrap { flex: 1; position: relative; display: flex; align-items: center; }
 .search-wrap svg { position: absolute; left: 10px; color: var(--text-muted); pointer-events: none; }
 .search-input {
-  width: 100%; padding: 8px 12px 8px 33px;
+  width: 100%; padding: 8px 30px 8px 33px;
   background: var(--bg-input); color: var(--text);
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   font-size: 0.86rem; outline: none; font-family: inherit;
@@ -404,6 +425,19 @@ select.input { cursor: pointer; }
 }
 .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 .search-input::placeholder { color: var(--text-muted); font-size: 0.8rem; }
+
+/* × clear button for search */
+.search-clear {
+  display: none;
+  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: 0.95rem; line-height: 1;
+  padding: 2px 5px; border-radius: 50%;
+  align-items: center; justify-content: center;
+  transition: color var(--transition), background var(--transition);
+}
+.search-clear:hover { color: var(--text); background: var(--bg-hover); }
+.search-input:not(:placeholder-shown) + .search-clear { display: flex; }
 
 /* ===== Filters Panel ===== */
 .filters-panel { border-top: 1px solid var(--border-light); padding-top: 14px; }

@@ -316,6 +316,7 @@
         selectedSub  = null;
       }
       syncTypePillUI();
+      updateDimOrder();
       applyFilters();
     });
 
@@ -354,6 +355,18 @@
     // Restore sub selection visual
     subContainer.querySelectorAll('.type-pill').forEach(p =>
       p.classList.toggle('selected', p.dataset.sub === selectedSub));
+  }
+
+  // ===== Dimension Order by Appliance Type =====
+  // Cooktop / Rangetop → W × D × H  (depth before height)
+  // All others         → W × H × D  (height before depth)
+
+  function updateDimOrder() {
+    const fieldH   = document.getElementById('filterHeight').closest('.dim-field');
+    const fieldD   = document.getElementById('filterDepth').closest('.dim-field');
+    const isCooktop = selectedMain === 'Cooktop' || selectedMain === 'Rangetop';
+    fieldD.style.order = isCooktop ? '3' : '';
+    fieldH.style.order = isCooktop ? '5' : '';
   }
 
   // ===== Filter Chips =====
@@ -424,6 +437,21 @@
       selectedMain = null;
       selectedSub  = null;
       syncTypePillUI();
+      updateDimOrder();
+      applyFilters();
+    });
+
+    // × clear buttons on dimension inputs
+    document.querySelectorAll('.dim-clear').forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.closest('.dim-input-wrap').querySelector('input').value = '';
+        applyFilters();
+      });
+    });
+
+    // × clear button on search
+    document.querySelector('.search-clear').addEventListener('click', () => {
+      document.getElementById('searchInput').value = '';
       applyFilters();
     });
 
@@ -521,6 +549,9 @@
 
   function applyFilters() {
     let models = [...allModels];
+
+    // Always hide models with no cutout width — they can't be compared meaningfully
+    models = models.filter(m => m.cutoutWidthMin || m.cutoutWidthMax || m.cutoutWidth);
 
     // Appliance type
     if (selectedMain) {
@@ -647,6 +678,9 @@
           if (hasTarget) {
             const diff = (fitOrder[a._fit] ?? 3) - (fitOrder[b._fit] ?? 3);
             if (diff !== 0) return diff;
+          } else if (!goldModel) {
+            // No active search or dimensions: confirmed models first
+            if (a.confirmed !== b.confirmed) return a.confirmed ? -1 : 1;
           }
           return (a.brand || '').toLowerCase() < (b.brand || '').toLowerCase() ? -1 : 1;
         }
@@ -690,6 +724,9 @@
     const hMatch = hasTarget && !isNaN(fh);
     const dMatch = hasTarget && !isNaN(fd);
 
+    // Cooktop/Rangetop display order: W × D × H  (depth before height)
+    const isCooktopView = selectedMain === 'Cooktop' || selectedMain === 'Rangetop';
+
     grid.innerHTML = filteredModels.map(m => {
       const fitClass = m._searchExact      ? 'fit-search'
                      : m._fit === 'exact'  ? 'fit-exact'
@@ -701,6 +738,16 @@
                      : '';
       const sizeLabel = m.nominalSize ? m.nominalSize + '"' : '';
       const trailUrl  = 'https://www.trailappliances.com/search.html?query=' + encodeURIComponent(m.id);
+
+      // Middle and last dimension slots depend on appliance type
+      const d2Label = isCooktopView ? 'D' : 'H';
+      const d2Val   = isCooktopView ? (m.cutoutDepth || '---') : (m.cutoutHeight || '---');
+      const d2Empty = isCooktopView ? !m.cutoutDepth : !m.cutoutHeight;
+      const d2Match = isCooktopView ? (dMatch && !!fitClass) : (hMatch && !!fitClass);
+      const d3Label = isCooktopView ? 'H' : 'D';
+      const d3Val   = isCooktopView ? (m.cutoutHeight || '---') : (m.cutoutDepth || '---');
+      const d3Empty = isCooktopView ? !m.cutoutHeight : !m.cutoutDepth;
+      const d3Match = isCooktopView ? (hMatch && !!fitClass) : (dMatch && !!fitClass);
 
       return `
         <div class="model-card ${fitClass}">
@@ -725,12 +772,12 @@
               <span class="cutout-dim-val ${!m.cutoutWidth ? 'empty' : ''} ${wMatch && fitClass ? 'match' : ''}">${escHtml(m.cutoutWidth || '---')}</span>
             </div>
             <div class="cutout-dim">
-              <span class="cutout-dim-label">H</span>
-              <span class="cutout-dim-val ${!m.cutoutHeight ? 'empty' : ''} ${hMatch && fitClass ? 'match' : ''}">${escHtml(m.cutoutHeight || '---')}</span>
+              <span class="cutout-dim-label">${d2Label}</span>
+              <span class="cutout-dim-val ${d2Empty ? 'empty' : ''} ${d2Match ? 'match' : ''}">${escHtml(d2Val)}</span>
             </div>
             <div class="cutout-dim">
-              <span class="cutout-dim-label">D</span>
-              <span class="cutout-dim-val ${!m.cutoutDepth ? 'empty' : ''} ${dMatch && fitClass ? 'match' : ''}">${escHtml(m.cutoutDepth || '---')}</span>
+              <span class="cutout-dim-label">${d3Label}</span>
+              <span class="cutout-dim-val ${d3Empty ? 'empty' : ''} ${d3Match ? 'match' : ''}">${escHtml(d3Val)}</span>
             </div>
           </div>
           ${m.installNote ? `<div class="card-note">${escHtml(m.installNote)}</div>` : ''}
