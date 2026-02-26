@@ -42,51 +42,55 @@
   <!-- Fraction Converter Panel -->
   <div id="converterPanel" class="converter-panel">
     <div class="converter-header">
-      <span class="converter-title">Fraction → Decimal</span>
+      <span class="converter-title">Fraction ↔ Decimal</span>
       <button id="converterClose" class="converter-close" title="Close">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
     <div class="converter-body">
       <div class="converter-live">
-        <label class="conv-label">Convert a measurement</label>
-        <input type="text" id="converterInput" class="input" placeholder='e.g. 34 3/4"'>
-        <div id="converterResult" class="converter-result"></div>
+        <label class="conv-label">Enter fraction or decimal</label>
+        <input type="text" id="converterInput" class="input" placeholder='e.g. 34 3/4"  or  34.75"'>
+        <div id="converterResult" class="converter-result empty">Type above to convert</div>
       </div>
       <div class="conv-divider"></div>
-      <div class="conv-label" style="margin-bottom:8px;">Fractional reference</div>
+      <div class="conv-label" style="margin-bottom:6px;">Halves</div>
       <table class="fraction-table">
-        <thead>
-          <tr><th>Fraction</th><th>Decimal</th></tr>
-        </thead>
+        <thead><tr><th>Fraction</th><th>Decimal</th></tr></thead>
         <tbody>
-          <tr><td>1/16</td><td>0.0625</td></tr>
-          <tr><td>1/8</td><td>0.125</td></tr>
-          <tr><td>3/16</td><td>0.1875</td></tr>
-          <tr><td>1/4</td><td>0.25</td></tr>
-          <tr><td>5/16</td><td>0.3125</td></tr>
-          <tr><td>3/8</td><td>0.375</td></tr>
-          <tr><td>7/16</td><td>0.4375</td></tr>
           <tr><td>1/2</td><td>0.5</td></tr>
-          <tr><td>9/16</td><td>0.5625</td></tr>
-          <tr><td>5/8</td><td>0.625</td></tr>
-          <tr><td>11/16</td><td>0.6875</td></tr>
-          <tr><td>3/4</td><td>0.75</td></tr>
-          <tr><td>13/16</td><td>0.8125</td></tr>
-          <tr><td>7/8</td><td>0.875</td></tr>
-          <tr><td>15/16</td><td>0.9375</td></tr>
         </tbody>
       </table>
       <div class="conv-divider"></div>
-      <div class="conv-label" style="margin-bottom:8px;">Mixed number examples</div>
+      <div class="conv-label" style="margin-bottom:6px;">Quarters</div>
       <table class="fraction-table">
         <tbody>
-          <tr><td>34 1/4"</td><td>34.25"</td></tr>
-          <tr><td>34 1/2"</td><td>34.5"</td></tr>
-          <tr><td>34 3/4"</td><td>34.75"</td></tr>
-          <tr><td>35 1/8"</td><td>35.125"</td></tr>
-          <tr><td>35 7/8"</td><td>35.875"</td></tr>
-          <tr><td>36 15/16"</td><td>36.9375"</td></tr>
+          <tr><td>1/4</td><td>0.25</td></tr>
+          <tr><td>3/4</td><td>0.75</td></tr>
+        </tbody>
+      </table>
+      <div class="conv-divider"></div>
+      <div class="conv-label" style="margin-bottom:6px;">Eighths</div>
+      <table class="fraction-table">
+        <tbody>
+          <tr><td>1/8</td><td>0.125</td></tr>
+          <tr><td>3/8</td><td>0.375</td></tr>
+          <tr><td>5/8</td><td>0.625</td></tr>
+          <tr><td>7/8</td><td>0.875</td></tr>
+        </tbody>
+      </table>
+      <div class="conv-divider"></div>
+      <div class="conv-label" style="margin-bottom:6px;">Sixteenths</div>
+      <table class="fraction-table">
+        <tbody>
+          <tr><td>1/16</td><td>0.0625</td></tr>
+          <tr><td>3/16</td><td>0.1875</td></tr>
+          <tr><td>5/16</td><td>0.3125</td></tr>
+          <tr><td>7/16</td><td>0.4375</td></tr>
+          <tr><td>9/16</td><td>0.5625</td></tr>
+          <tr><td>11/16</td><td>0.6875</td></tr>
+          <tr><td>13/16</td><td>0.8125</td></tr>
+          <tr><td>15/16</td><td>0.9375</td></tr>
         </tbody>
       </table>
     </div>
