@@ -86,6 +86,20 @@
     return min + ' – ' + max;
   }
 
+  /** Convert a decimal inch value to the nearest 1/16" fraction string. */
+  function decimalToFraction(decimal) {
+    const whole = Math.floor(Math.abs(decimal));
+    const frac  = Math.abs(decimal) - whole;
+    const sixteenths = Math.round(frac * 16);
+    if (sixteenths === 0)  return whole + '"';
+    if (sixteenths === 16) return (whole + 1) + '"';
+    const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+    const g   = gcd(sixteenths, 16);
+    const num = sixteenths / g;
+    const den = 16 / g;
+    return (whole > 0 ? whole + ' ' : '') + num + '/' + den + '"';
+  }
+
   /**
    * Given a model's cutout range [minVal, maxVal] and a target,
    * return how far outside the acceptable range the target falls.
@@ -422,16 +436,31 @@
     document.getElementById('converterClose').addEventListener('click', close);
     overlay.addEventListener('click', close);
 
-    // Live fraction → decimal converter
+    // Bidirectional converter: fraction→decimal or decimal→fraction
     document.getElementById('converterInput').addEventListener('input', function () {
-      const result = document.getElementById('converterResult');
-      const val = parseInches(this.value);
-      if (val !== null) {
-        result.className = 'converter-result';
-        result.textContent = val.toFixed(4).replace(/\.?0+$/, '') + '"  =  ' + val + '"';
+      const result  = document.getElementById('converterResult');
+      const raw     = this.value.trim();
+      if (!raw) {
+        result.className  = 'converter-result empty';
+        result.textContent = 'Type above to convert';
+        return;
+      }
+      // Detect pure decimal: only digits and optional decimal point, no slash/space
+      const cleaned = raw.replace(/"/g, '').trim();
+      if (/^\d+(\.\d+)?$/.test(cleaned)) {
+        // Decimal → nearest 1/16 fraction
+        result.className  = 'converter-result';
+        result.textContent = decimalToFraction(parseFloat(cleaned));
       } else {
-        result.className = 'converter-result empty';
-        result.textContent = this.value ? 'Cannot parse — try e.g. 34 3/4' : '';
+        // Fraction / mixed number → decimal
+        const val = parseInches(raw);
+        if (val !== null) {
+          result.className  = 'converter-result';
+          result.textContent = val.toFixed(4).replace(/\.?0+$/, '') + '"';
+        } else {
+          result.className  = 'converter-result empty';
+          result.textContent = 'Try: 34 3/4  or  34.75';
+        }
       }
     });
   }
@@ -520,14 +549,32 @@
       });
     }
 
-    // Search
+    // Search — detect exact model ID match first
     const q = document.getElementById('searchInput').value.trim().toLowerCase();
-    if (q) {
-      models = models.filter(m =>
-        m.id.toLowerCase().includes(q) ||
-        (m.brand || '').toLowerCase().includes(q) ||
-        (m.category || '').toLowerCase().includes(q)
-      );
+    // Look for exact ID match in the currently type-filtered list
+    const goldModel = q.length > 0
+      ? models.find(m => m.id.toLowerCase() === q)
+      : null;
+
+    // If exact match: use its cutout dims as target and show all compatible models
+    // If no exact match: apply normal text search filter + use dimension inputs
+    let fw, fh, fd;
+    if (goldModel) {
+      fw = parseInches(goldModel.cutoutWidthMin)  ?? NaN;
+      fh = parseInches(goldModel.cutoutHeightMin) ?? NaN;
+      fd = parseInches(goldModel.cutoutDepthMin)  ?? NaN;
+      // (no text filter — show every model that fits the same cutout)
+    } else {
+      if (q) {
+        models = models.filter(m =>
+          m.id.toLowerCase().includes(q) ||
+          (m.brand || '').toLowerCase().includes(q) ||
+          (m.category || '').toLowerCase().includes(q)
+        );
+      }
+      fw = parseFloat(document.getElementById('filterWidth').value);
+      fh = parseFloat(document.getElementById('filterHeight').value);
+      fd = parseFloat(document.getElementById('filterDepth').value);
     }
 
     // Additive filter chips
@@ -544,24 +591,38 @@
     }
 
     // Dimension targets
-    const fw = parseFloat(document.getElementById('filterWidth').value);
-    const fh = parseFloat(document.getElementById('filterHeight').value);
-    const fd = parseFloat(document.getElementById('filterDepth').value);
     const tolerance = parseFloat(document.getElementById('fitTolerance').value) || 0.5;
     const hasTarget = !isNaN(fw) || !isNaN(fh) || !isNaN(fd);
 
-    // Exact search match (gold)
-    const exactSearch = q.length > 0;
+    // Gold model cutout minimums — used to detect possible misfit on other models
+    const goldWMin = goldModel ? parseInches(goldModel.cutoutWidthMin)  : null;
+    const goldHMin = goldModel ? parseInches(goldModel.cutoutHeightMin) : null;
+    const goldDMin = goldModel ? parseInches(goldModel.cutoutDepthMin)  : null;
 
-    models = models.map(m => ({
-      ...m,
-      _fit:         classifyFit(m, fw, fh, fd, tolerance),
-      _searchExact: exactSearch && m.id.toLowerCase() === q,
-    }));
+    models = models.map(m => {
+      const _fit        = classifyFit(m, fw, fh, fd, tolerance);
+      const _searchExact = !!goldModel && m.id.toLowerCase() === q;
 
-    // If dimensions entered, hide models beyond tolerance+buffer
+      // Possible misfit: this model's minimum cutout is tighter than gold's minimum.
+      // If the cutout was done to gold's minimum spec, this model might not fit.
+      let _possibleMisfit = false;
+      if (goldModel && !_searchExact && _fit !== null) {
+        const mWMin = parseInches(m.cutoutWidthMin);
+        const mHMin = parseInches(m.cutoutHeightMin);
+        const mDMin = parseInches(m.cutoutDepthMin);
+        if ((goldWMin !== null && mWMin !== null && mWMin > goldWMin + 0.001) ||
+            (goldHMin !== null && mHMin !== null && mHMin > goldHMin + 0.001) ||
+            (goldDMin !== null && mDMin !== null && mDMin > goldDMin + 0.001)) {
+          _possibleMisfit = true;
+        }
+      }
+
+      return { ...m, _fit, _searchExact, _possibleMisfit };
+    });
+
+    // If dimensions entered, hide models beyond tolerance+buffer; always keep gold model
     if (hasTarget) {
-      models = models.filter(m => m._fit !== null);
+      models = models.filter(m => m._fit !== null || m._searchExact);
     }
 
     // Sort
@@ -593,7 +654,7 @@
     });
 
     filteredModels = models;
-    renderModels(fw, fh, fd, hasTarget, exactSearch);
+    renderModels(fw, fh, fd, hasTarget, !!goldModel);
   }
 
   // ===== Render =====
@@ -651,6 +712,7 @@
             </div>
             <div class="card-badges">
               ${sizeLabel ? `<span class="badge badge-size">${sizeLabel}</span>` : ''}
+              ${m._possibleMisfit ? '<span class="badge badge-misfit">⚠ Verify Fit</span>' : ''}
               ${m.confirmed
                 ? '<span class="badge badge-confirmed">✓ Confirmed</span>'
                 : '<span class="badge badge-unconfirmed">Unconfirmed</span>'}

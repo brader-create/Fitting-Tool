@@ -585,6 +585,7 @@ select.input { cursor: pointer; }
 .badge-unconfirmed  { background: var(--bg-input); color: var(--text-muted); }
 .badge-discontinued { background: #fee2e2; color: #dc2626; }
 .badge-size         { background: var(--accent-light); color: var(--accent); }
+.badge-misfit       { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-border); }
 
 /* Cutout grid */
 .card-cutout {
