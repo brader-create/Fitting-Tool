@@ -243,30 +243,36 @@
       ].filter(Boolean);
 
       if (csvUrls.length > 0) {
-        try {
-          const allCsvModels = [];
-          for (const url of csvUrls) {
+        const allCsvModels = [];
+        let failedUrls = 0;
+        for (const url of csvUrls) {
+          try {
             const csvText = await fetch(url).then(r => {
-              if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + url);
+              if (!r.ok) throw new Error('HTTP ' + r.status);
               return r.text();
             });
             const parsed = parseCSV(csvText);
             console.log('[FittingTool] Fetched', parsed.length, 'models from', url);
             allCsvModels.push(...parsed);
+          } catch (urlErr) {
+            failedUrls++;
+            console.warn('[FittingTool] Failed to load tab URL:', url, '—', urlErr.message);
           }
-          if (allCsvModels.length > 0) {
-            allModels = dedup(allCsvModels);
-            console.log('[FittingTool] Total:', allModels.length, 'models from', csvUrls.length, 'sheet tab(s)');
-            loading.style.display = 'none';
-            initUI();
-            return;
-          }
-          throw new Error('All sheets returned 0 models');
-        } catch (sheetErr) {
-          console.warn('[FittingTool] Sheet load failed, falling back to local JSON:', sheetErr.message);
-          notice.textContent = '⚠ Could not load live data from Google Sheet — showing cached local data.';
-          notice.style.display = 'block';
         }
+        if (allCsvModels.length > 0) {
+          allModels = dedup(allCsvModels);
+          console.log('[FittingTool] Total:', allModels.length, 'models from', csvUrls.length - failedUrls, 'of', csvUrls.length, 'tab(s)');
+          if (failedUrls > 0) {
+            notice.textContent = '⚠ ' + failedUrls + ' sheet tab(s) failed to load — some models may be missing. Check browser console for details.';
+            notice.style.display = 'block';
+          }
+          loading.style.display = 'none';
+          initUI();
+          return;
+        }
+        console.warn('[FittingTool] All sheet tabs failed or returned 0 models — falling back to local JSON.');
+        notice.textContent = '⚠ Could not load live data from Google Sheet — showing cached local data.';
+        notice.style.display = 'block';
       }
 
       // Fallback: local JSON
